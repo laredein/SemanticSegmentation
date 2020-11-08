@@ -3,8 +3,8 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 import keras
-from keras.models import Sequential
-from keras.layers import Dense,Conv2D,Flatten,AveragePooling2D,UpSampling2D,Input
+from keras.models import *
+from keras.layers import *
 from keras import layers
 import random
 traintitles=pd.read_csv("train/ImageSets/Segmentation/train.txt",header=None,dtype=str,names=["traintitles"])
@@ -12,9 +12,9 @@ segarr=[]
 imarr=[]
 
 def crop(im,segim):
-    w=random.randint(0,len(im[0])-160)
-    h=random.randint(0,len(im)-160)
-    return [im[h:h+160,w:w+160],segim[h:h+160,w:w+160]]
+    w=random.randint(0,len(im[0])-320)
+    h=random.randint(0,len(im)-320)
+    return [im[h:h+320,w:w+320],segim[h:h+320,w:w+320]]
 
 c=0
 for i in traintitles["traintitles"]:
@@ -25,7 +25,7 @@ for i in traintitles["traintitles"]:
         arr=crop(im,segim)
         segarr.append(arr[1])
         imarr.append(arr[0])
-    if c==1000:
+    if c==500:
         break
 
 
@@ -68,7 +68,7 @@ def topict(im22):
 
 
 pixeltypes=types(segarr)
-arr22=getitem(segarr,pixeltypes,10,22)
+arr22=getitem(segarr,pixeltypes,50,22)
 imarr=np.array(imarr)
 
 
@@ -126,22 +126,21 @@ def get_model(img_size,num_classes):
 
 
 keras.backend.clear_session()
-model=get_model((160,160),22)
+model=get_model((320,320),22)
 model.compile(optimizer='adam',loss="categorical_crossentropy")
 
+a=model.predict(imarr[0:10])
+for i in range(1):
+    b=topict(a[i])
+    plt.imshow(b)
+    plt.show()
+    plt.imshow(imarr[i])
+    plt.show()
 
-for i in range(3):
-    model.fit(imarr[:10],arr22[:10],epochs=1,batch_size=5)
-    keras.backend.clear_session()
-    """
-    model.fit(imarr[250:500],arr22[250:500],epochs=1,batch_size=5)
-    keras.backend.clear_session()
-    model.fit(imarr[500:750],arr22[500:750],epochs=1,batch_size=5)
-    keras.backend.clear_session()
-    model.fit(imarr[750:],arr22[750:],epochs=1,batch_size=5)
-    keras.backend.clear_session()
-    """
-    print(i)
+
+model.fit(imarr[:len(arr22)],arr22[:],epochs=5,batch_size=50)
+keras.backend.clear_session()
+print(i)
 
 
 
