@@ -7,26 +7,26 @@ from keras.models import *
 from keras.layers import *
 from keras import layers
 import random
+import tensorflow as tf
 traintitles=pd.read_csv("train/ImageSets/Segmentation/train.txt",header=None,dtype=str,names=["traintitles"])
 segarr=[]
 imarr=[]
 
 def crop(im,segim):
-    w=random.randint(0,len(im[0])-320)
-    h=random.randint(0,len(im)-320)
-    return [im[h:h+320,w:w+320],segim[h:h+320,w:w+320]]
+    w=random.randint(0,len(im[0])-224)
+    h=random.randint(0,len(im)-224)
+    return [im[h:h+224,w:w+224],segim[h:h+224,w:w+224]]
 
 c=0
 for i in traintitles["traintitles"]:
     segim=plt.imread("train/SegmentationClass/"+i+".png")
     im=plt.imread("train/JPEGImages/"+i+".jpg")
-    if len(segim)>=325 and len(segim[0])>=325 and len(im)>=325 and len(im[0])>=325:
+    if len(segim)>=224 and len(segim[0])>=224 and len(im)>=224 and len(im[0])>=224:
         c=c+1
         arr=crop(im,segim)
         segarr.append(arr[1])
         imarr.append(arr[0])
-    if c==500:
-        break
+print(len(segarr))
 
 
 def types(segarr):
@@ -67,67 +67,30 @@ def topict(im22):
     return im
 
 
+
+
+
+
+
 pixeltypes=types(segarr)
-arr22=getitem(segarr,pixeltypes,50,22)
+arr22=getitem(segarr,pixeltypes,10,22)
 imarr=np.array(imarr)
 
 
-def get_model(img_size,num_classes):
-    inputs=keras.Input(shape=img_size+(3,))
-    # x=layers.experimental.preprocessing.RandomCrop(160,160)(inputs)
-    x=layers.Conv2D(32,3,strides=2,padding="same")(inputs)
-    x=layers.BatchNormalization()(x)
-    x=layers.Activation("relu")(x)
-
-    previous_block_activation=x  # Set aside residual
-
-    # Blocks 1, 2, 3 are identical apart from the feature depth.
-    for filters in [64,128,256]:
-        x=layers.Activation("relu")(x)
-        x=layers.SeparableConv2D(filters,3,padding="same")(x)
-        x=layers.BatchNormalization()(x)
-
-        x=layers.Activation("relu")(x)
-        x=layers.SeparableConv2D(filters,3,padding="same")(x)
-        x=layers.BatchNormalization()(x)
-
-        x=layers.MaxPooling2D(3,strides=2,padding="same")(x)
-
-        # Project residual
-        residual=layers.Conv2D(filters,1,strides=2,padding="same")(previous_block_activation)
-        x=layers.add([x,residual])  # Add back residual
-        previous_block_activation=x  # Set aside next residual
-
-    ### [Second half of the network: upsampling inputs] ###
-
-    for filters in [256,128,64,32]:
-        x=layers.Activation("relu")(x)
-        x=layers.Conv2DTranspose(filters,3,padding="same")(x)
-        x=layers.BatchNormalization()(x)
-
-        x=layers.Activation("relu")(x)
-        x=layers.Conv2DTranspose(filters,3,padding="same")(x)
-        x=layers.BatchNormalization()(x)
-
-        x=layers.UpSampling2D(2)(x)
-
-        # Project residual
-        residual=layers.UpSampling2D(2)(previous_block_activation)
-        residual=layers.Conv2D(filters,1,padding="same")(residual)
-        x=layers.add([x,residual])  # Add back residual
-        previous_block_activation=x  # Set aside next residual
-
-    # Add a per-pixel classification layer
-    outputs=layers.Conv2D(num_classes,3,activation="softmax",padding="same")(x)
-    # Define the model
-    model=keras.Model(inputs,outputs)
-    return model
+model=Sequential(keras.applications.VGG16(include_top=False,weights="imagenet",input_tensor=None,input_shape=None,pooling=None,classes=1000,classifier_activation="softmax",))
+model.add(layers.UpSampling2D(2))
+model.add(layers.Conv2D(filters=128,kernel_size=3,padding="same"))
+model.add(layers.UpSampling2D(2))
+model.add(layers.Conv2D(filters=64,kernel_size=3,padding="same"))
+model.add(layers.UpSampling2D(2))
+model.add(layers.Conv2D(filters=22,kernel_size=3,padding="same"))
+model.add(layers.UpSampling2D(2))
+model.add(layers.Conv2D(filters=22,kernel_size=3,padding="same"))
+model.add(layers.UpSampling2D(2))
+model.compile(optimizer='rmsprop',loss='categorical_crossentropy')
 
 
-
-keras.backend.clear_session()
-model=get_model((320,320),22)
-model.compile(optimizer='adam',loss="categorical_crossentropy")
+model.fit(imarr[:10],arr22[:10],epochs=1,batch_size=10)
 
 a=model.predict(imarr[0:10])
 for i in range(1):
@@ -136,19 +99,5 @@ for i in range(1):
     plt.show()
     plt.imshow(imarr[i])
     plt.show()
-
-
-model.fit(imarr[:len(arr22)],arr22[:],epochs=5,batch_size=50)
-keras.backend.clear_session()
-print(i)
-
-
-
-a=model.predict(imarr[0:10])
-for i in range(10):
-    b=topict(a[i])
-    plt.imshow(b)
+    plt.imshow(segarr[i])
     plt.show()
-    plt.imshow(imarr[i])
-    plt.show()
-
